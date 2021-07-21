@@ -1,3 +1,5 @@
+// v2.2
+
 let canvas = document.getElementsByTagName('canvas')[0];
 
 canvas.width = canvas.clientWidth;
