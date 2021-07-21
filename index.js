@@ -346,7 +346,6 @@ function update() {
 }
 
 function splat(x, y, dx, dy, color) {
-    console.log(color)
     splatProgram.bind();
     gl.uniform1i(splatProgram.uniforms.uTarget, velocity.first[2]);
     gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);

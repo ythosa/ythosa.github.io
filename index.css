@@ -21,7 +21,6 @@ canvas {
 }
 
 p {
-    font-size: 40px;
     margin: 0;
     letter-spacing: 3px;
 }
@@ -44,9 +43,9 @@ a {
 }
 
 .fa-ms {
-    font-size: 1.1em;
-    line-height: .7em;
-    vertical-align: -.0667em
+    font-size: 1.8vh;
+    line-height: 1.1vh;
+    vertical-align: -1vh;
 }
 
 .wrapper {
@@ -65,13 +64,13 @@ a {
 }
 
 .nickname {
-    font-size: 45px;
+    font-size: 4.6vh;
 }
 
 .lyrics {
+    font-size: 1.63vh;
     margin-top: 4px;
     letter-spacing: 1px;
-    font-size: 16px;
     opacity: 70%;
 }
 
