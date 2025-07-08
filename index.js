@@ -78,7 +78,7 @@ function PointerPrototype() {
 
 pointers.push(new PointerPrototype());
 
-let GLProgram = function () {
+let GLProgram = function() {
 
     function GLProgram(vertexShader, fragmentShader) {
 
@@ -222,7 +222,7 @@ function createDoubleFBO(texId, w, h, internalFormat, format, type, param) {
 
 }
 
-let blit = function () {
+let blit = function() {
 
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
@@ -231,7 +231,7 @@ let blit = function () {
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(0);
 
-    return function (destination) {
+    return function(destination) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, destination);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     };
@@ -369,25 +369,8 @@ function resizeCanvas() {
         canvas.width = canvas.clientWidth, canvas.height = canvas.clientHeight, initFramebuffers());
 }
 
-let count = 0;
-let colorArr = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2];
 
-canvas.addEventListener('mousemove', function (e) {
-    count++;
-
-    (count > 25) && (colorArr = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2], count = 0);
-
-    pointers[0].down = true;
-    pointers[0].color = colorArr;
-    pointers[0].moved = pointers[0].down;
-    pointers[0].dx = (e.offsetX - pointers[0].x) * 10.0;
-    pointers[0].dy = (e.offsetY - pointers[0].y) * 10.0;
-    pointers[0].x = e.offsetX;
-    pointers[0].y = e.offsetY;
-
-});
-
-canvas.addEventListener('touchmove', function (e) {
+canvas.addEventListener('touchmove', function(e) {
     e.preventDefault();
 
     let touches = e.targetTouches;
@@ -417,3 +400,167 @@ canvas.addEventListener('touchmove', function (e) {
     }
 
 }, false);
+
+// Enhanced mouse movement with smooth curve simulation
+let mouseInactive = false;
+let lastMouseTime = Date.now();
+let count = 0;
+let colorArr = [0.5, 0.5, 0.5];
+let simulationActive = false;
+let animationId;
+
+// Smooth curve simulation variables
+let curvePoints = [];
+let currentCurveIndex = 0;
+let interpolationFactor = 0;
+const CURVE_SPEED = 1; // Controls how fast the curve is drawn
+const CURVE_SMOOTHNESS = 150; // Number of points in each curve segment
+
+// Generate smooth curve points using Bézier curves
+function generateSmoothCurve(startX, startY, canvasWidth, canvasHeight) {
+    const points = [];
+    const numSegments = 3 + Math.random() * 2; // 3-5 curve segments
+
+    let currentX = startX;
+    let currentY = startY;
+
+    for (let segment = 0; segment < numSegments; segment++) {
+        // Generate random control points for smooth curves
+        const endX = Math.random() * canvasWidth;
+        const endY = Math.random() * canvasHeight;
+
+        // Control points for cubic Bézier curve - more extreme for curvier paths
+        const cp1x = currentX + (Math.random() - 0.5) * 600;
+        const cp1y = currentY + (Math.random() - 0.5) * 600;
+        const cp2x = endX + (Math.random() - 0.5) * 600;
+        const cp2y = endY + (Math.random() - 0.5) * 600;
+
+        // Generate points along the Bézier curve
+        for (let i = 0; i <= CURVE_SMOOTHNESS; i++) {
+            const t = i / CURVE_SMOOTHNESS;
+            const x = Math.pow(1 - t, 3) * currentX +
+                3 * Math.pow(1 - t, 2) * t * cp1x +
+                3 * (1 - t) * Math.pow(t, 2) * cp2x +
+                Math.pow(t, 3) * endX;
+            const y = Math.pow(1 - t, 3) * currentY +
+                3 * Math.pow(1 - t, 2) * t * cp1y +
+                3 * (1 - t) * Math.pow(t, 2) * cp2y +
+                Math.pow(t, 3) * endY;
+
+            points.push({ x, y });
+        }
+
+        currentX = endX;
+        currentY = endY;
+    }
+
+    return points;
+}
+
+// Simulate smooth mouse movement
+function simulateMouseMovement() {
+    if (!simulationActive) return;
+
+    if (curvePoints.length === 0) {
+        // Generate new curve starting from current position
+        curvePoints = generateSmoothCurve(
+            pointers[0].x,
+            pointers[0].y,
+            canvas.width,
+            canvas.height
+        );
+        currentCurveIndex = 0;
+        interpolationFactor = 0;
+    }
+
+    // Interpolate between current and next point
+    if (currentCurveIndex < curvePoints.length - 1) {
+        const currentPoint = curvePoints[currentCurveIndex];
+        const nextPoint = curvePoints[currentCurveIndex + 1];
+
+        // Smooth interpolation
+        const x = currentPoint.x + (nextPoint.x - currentPoint.x) * interpolationFactor;
+        const y = currentPoint.y + (nextPoint.y - currentPoint.y) * interpolationFactor;
+
+        // Update pointer with simulated movement
+        const prevX = pointers[0].x;
+        const prevY = pointers[0].y;
+
+        pointers[0].x = x;
+        pointers[0].y = y;
+        pointers[0].dx = (x - prevX) * 10.0;
+        pointers[0].dy = (y - prevY) * 10.0;
+        pointers[0].moved = true;
+
+        // Update color occasionally
+        count++;
+        if (count > 25) {
+            colorArr = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2];
+            count = 0;
+        }
+        pointers[0].color = colorArr;
+
+        // Advance interpolation
+        interpolationFactor += CURVE_SPEED;
+        if (interpolationFactor >= 1.0) {
+            currentCurveIndex++;
+            interpolationFactor = 0;
+        }
+    } else {
+        // Finished current curve, generate new one
+        curvePoints = [];
+    }
+
+    // Continue animation
+    animationId = requestAnimationFrame(simulateMouseMovement);
+}
+
+// Check for mouse inactivity
+function checkMouseInactivity() {
+    const now = Date.now();
+
+    if (now - lastMouseTime > 200 && !mouseInactive) {
+        mouseInactive = true;
+        simulationActive = true;
+        curvePoints = []; // Reset curve points
+        simulateMouseMovement(); // Start simulation
+    } else if (now - lastMouseTime <= 200 && mouseInactive) {
+        mouseInactive = false;
+        simulationActive = false;
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+    }
+}
+
+// Start the inactivity checker
+setInterval(checkMouseInactivity, 50);
+
+// Your existing mousemove event listener
+canvas.addEventListener('mousemove', function(e) {
+    mouseInactive = false;
+    lastMouseTime = Date.now();
+
+    // Stop simulation if running
+    if (simulationActive) {
+        simulationActive = false;
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+    }
+
+    count++;
+    (count > 25) && (colorArr = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2], count = 0);
+    pointers[0].down = true;
+    pointers[0].color = colorArr;
+    pointers[0].moved = pointers[0].down;
+    pointers[0].dx = (e.offsetX - pointers[0].x) * 10.0;
+    pointers[0].dy = (e.offsetY - pointers[0].y) * 10.0;
+    pointers[0].x = e.offsetX;
+    pointers[0].y = e.offsetY;
+});
+
+// Optional: Add mouse leave event to continue simulation
+canvas.addEventListener('mouseleave', function() {
+    lastMouseTime = Date.now() - 201; // Force immediate simulation
+});
